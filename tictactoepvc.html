@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Tic Tac Toe vs CPU</title>
+        <style>
+    body {
+      background: #0f0f0f;
+      color: #00ffea;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      font-family: 'Orbitron', sans-serif;
+    }
+    h1 {
+      text-shadow: 0 0 20px #00ffea;
+    }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 5px;
+      margin-top: 20px;
+    }
+    .cell {
+      width: 100px;
+      height: 100px;
+      background: #1a1a1a;
+      border: 2px solid #00ffea;
+      font-size: 3rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .cell:hover {
+      background: #333;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 2rem;
+      text-shadow: 0 0 20px #00ffea;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 1.2rem;
+      border: 2px solid #00ffea;
+      background: transparent;
+      color: #00ffea;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #00ffea;
+      color: #0f0f0f;
+    }
+    /* CPU Thinking Overlay */
+    #cpuOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      color: #00ffea;
+      font-size: 2rem;
+      text-shadow: 0 0 20px #00ffea;
+    }
+  </style>
+    </head>
+    <body>
+        <h1>Tic Tac Toe</h1>
+        <div id="board"></div>
+        <div id="result"></div>
+        <button id="restart">Restart Game</button>
+        <div id="cpuOverlay">CPU is thinking...</div>
+        <script>
+    const boardEl = document.getElementById("board");
+    const resultEl = document.getElementById("result");
+    const restartBtn = document.getElementById("restart");
+    const cpuOverlay = document.getElementById("cpuOverlay");
+    
+    let board = Array(9).fill(null); // 3x3 board
+    let human = "X";
+    let ai = "O";
+    let gameOver = false;
+
+    // Winning combinations
+    const winCombos = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6]
+    ];
+
+    function renderBoard() {
+      boardEl.innerHTML = "";
+      board.forEach((cell, index) => {
+        const cellEl = document.createElement("div");
+        cellEl.classList.add("cell");
+        cellEl.dataset.index = index;
+        cellEl.textContent = cell || "";
+        cellEl.addEventListener("click", handleCellClick);
+        boardEl.appendChild(cellEl);
+      });
+    }
+
+    function handleCellClick(e) {
+      const idx = e.target.dataset.index;
+      if (!board[idx] && !gameOver) {
+        makeMove(idx, human);
+        if (!gameOver) {
+          // Show CPU thinking overlay
+          cpuOverlay.style.display = "flex";
+          // Delay CPU move to show the overlay animation
+          setTimeout(() => {
+            const bestMove = minimax(board, ai).index;
+            makeMove(bestMove, ai);
+            cpuOverlay.style.display = "none";
+          }, 1000); // 1 second delay for animation
+        }
+      }
+    }
+
+    function makeMove(idx, player) {
+      board[idx] = player;
+      renderBoard();
+      let win = checkWin(board, player);
+      if (win) {
+        gameOver = true;
+        resultEl.textContent = (player === human ? "You Win!" : "You Lose!");
+      } else if (emptyIndices(board).length === 0) {
+        gameOver = true;
+        resultEl.textContent = "Draw!";
+      }
+    }
+
+    function checkWin(board, player) {
+      for (let combo of winCombos) {
+        if (combo.every(idx => board[idx] === player)) {
+          return { player, combo };
+        }
+      }
+      return null;
+    }
+
+    function emptyIndices(board) {
+      return board.reduce((acc, cell, idx) => {
+        if (!cell) acc.push(idx);
+        return acc;
+      }, []);
+    }
+
+    // Minimax algorithm
+    function minimax(newBoard, player) {
+      const availSpots = emptyIndices(newBoard);
+
+      if (checkWin(newBoard, human)) {
+        return { score: -10 };
+      } else if (checkWin(newBoard, ai)) {
+        return { score: 10 };
+      } else if (availSpots.length === 0) {
+        return { score: 0 };
+      }
+
+      let moves = [];
+      for (let i = 0; i < availSpots.length; i++) {
+        let move = {};
+        move.index = availSpots[i];
+        newBoard[availSpots[i]] = player;
+
+        if (player === ai) {
+          let result = minimax(newBoard, human);
+          move.score = result.score;
+        } else {
+          let result = minimax(newBoard, ai);
+          move.score = result.score;
+        }
+        newBoard[availSpots[i]] = null;
+        moves.push(move);
+      }
+
+      let bestMove;
+      if (player === ai) {
+        let bestScore = -Infinity;
+        for (let i = 0; i < moves.length; i++) {
+          if (moves[i].score > bestScore) {
+            bestScore = moves[i].score;
+            bestMove = i;
+          }
+        }
+      } else {
+        let bestScore = Infinity;
+        for (let i = 0; i < moves.length; i++) {
+          if (moves[i].score < bestScore) {
+            bestScore = moves[i].score;
+            bestMove = i;
+          }
+        }
+      }
+      return moves[bestMove];
+    }
+
+    restartBtn.addEventListener("click", () => {
+      board = Array(9).fill(null);
+      gameOver = false;
+      resultEl.textContent = "";
+      cpuOverlay.style.display = "none";
+      renderBoard();
+    });
+
+    renderBoard();
+  </script>
+    </body>
+</html>
